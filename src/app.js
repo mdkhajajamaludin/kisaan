@@ -33,7 +33,7 @@ app.use(performanceMonitor);
 app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
-    ? ['https://your-domain.com']
+    ? ['https://kisaan-sandy.vercel.app', 'http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080']
     : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -155,7 +155,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production'
-      ? ['https://your-domain.com']
+      ? ['https://kisaan-sandy.vercel.app', 'http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080']
       : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080'],
     credentials: true,
     methods: ['GET', 'POST']

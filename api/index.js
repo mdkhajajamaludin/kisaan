@@ -31,7 +31,7 @@ app.use(performanceMonitor);
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: ['https://kisaan-sandy.vercel.app', 'http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080', 'http://localhost:8081'],
+  origin: ['https://kisanbhub.netlify.app', 'https://kisaan-sandy.vercel.app', 'http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080', 'http://localhost:8081'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

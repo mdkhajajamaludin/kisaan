@@ -10,8 +10,15 @@ const requireProductAccess = async (req, res, next) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Admin always has access
-    if (req.user.role === 'admin' || req.user.email === 'dev.unity.cc@gmail.com') {
+    // Admin always has access - no further checks needed
+    if (req.user.role === 'admin') {
+      console.log('Admin user detected - granting full product access');
+      req.productAccess = {
+        is_approved: true,
+        max_products: 999999,
+        current_product_count: 0,
+        remaining_slots: 999999
+      };
       return next();
     }
 
@@ -79,7 +86,8 @@ const requireProductOwnership = async (req, res, next) => {
     }
 
     // Admin can edit any product
-    if (req.user.role === 'admin' || req.user.email === 'dev.unity.cc@gmail.com') {
+    if (req.user.role === 'admin') {
+      console.log('Admin user detected - granting product edit access');
       return next();
     }
 

@@ -16,8 +16,7 @@ const storage = new CloudinaryStorage({
     folder: 'zaitoon-marketplace',
     allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
     transformation: [
-      { width: 800, height: 600, crop: 'limit' },
-      { quality: 'auto' }
+      { width: 1200, height: 1200, crop: 'limit', quality: 'auto:good', fetch_format: 'auto' },
     ]
   },
 });

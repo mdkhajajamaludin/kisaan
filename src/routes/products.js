@@ -117,6 +117,9 @@ const getProductVendorId = async (req) => {
 // Get all products with filters
 router.get('/', optionalAuth, async (req, res) => {
   try {
+    // Handle case where there's no authenticated user
+    const userId = req.user ? req.user.id : null;
+    
     const {
       category_id,
       vendor_id,
@@ -173,6 +176,9 @@ router.get('/', optionalAuth, async (req, res) => {
 // Get single product (only matches numeric IDs)
 router.get('/:id(\\d+)', optionalAuth, async (req, res) => {
   try {
+    // Handle case where there's no authenticated user
+    const userId = req.user ? req.user.id : null;
+    
     const productId = parseInt(req.params.id);
     if (isNaN(productId)) {
       return res.status(400).json({ error: 'Invalid product ID' });

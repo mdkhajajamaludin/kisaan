@@ -104,20 +104,7 @@ const verifyToken = async (req, res, next) => {
 
 const optionalAuth = async (req, res, next) => {
   try {
-    // Always add a mock user for development
-    req.user = {
-      id: 1,
-      firebase_uid: 'optional-admin-uid',
-      email: 'admin@example.com',
-      name: 'Admin User',
-      role: 'admin',
-      phone: '',
-      addresses: [],
-      preferences: {},
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    req.firebaseUser = { uid: 'optional-admin-uid', email: 'admin@example.com' };
+    // Don't set any mock user - let routes handle unauthenticated requests properly
     next();
   } catch (error) {
     // Continue without authentication for optional auth

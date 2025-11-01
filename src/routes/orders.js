@@ -33,7 +33,7 @@ const createOrderSchema = Joi.object({
 });
 
 const updateStatusSchema = Joi.object({
-  status: Joi.string().valid('pending', 'processing', 'shipped', 'delivered', 'cancelled').required(),
+  status: Joi.string().valid('pending-confirmation', 'pending', 'processing', 'shipped', 'delivered', 'cancelled').required(),
   admin_notes: Joi.string().optional()
 });
 
@@ -94,6 +94,7 @@ router.post('/', verifyToken, async (req, res) => {
     const orderData = {
       user_id: req.user.id,
       total_amount: totalAmount,
+      status: 'pending-confirmation', // New status for manual confirmation
       ...value
     };
 
@@ -216,7 +217,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Order created successfully',
+      message: 'Order created successfully. Our team will call you shortly to confirm payment and delivery.',
       order: {
         ...order,
         items: orderItems

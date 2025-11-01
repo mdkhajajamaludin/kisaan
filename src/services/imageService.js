@@ -28,8 +28,7 @@ class ImageService {
       const result = await cloudinary.uploader.upload(file.path, {
         folder: `zaitoon-marketplace/${folder}`,
         transformation: [
-          { width: 800, height: 600, crop: 'limit' },
-          { quality: 'auto' }
+          { width: 1200, height: 1200, crop: 'limit', quality: 'auto:good', fetch_format: 'auto' }
         ]
       });
 
@@ -102,7 +101,7 @@ class ImageService {
         return imageUrl; // Return original if can't parse
       }
 
-      const transformation = `c_fill,w_${width},h_${height},q_auto`;
+      const transformation = `c_fill,w_${width},h_${height},q_auto:good,f_auto`;
       return `${urlParts[0]}/upload/${transformation}/${urlParts[1]}`;
     } catch (error) {
       console.error('Thumbnail generation error:', error);
@@ -140,7 +139,7 @@ class ImageService {
         return imageUrl;
       }
 
-      const transformation = `q_${quality},f_auto`;
+      const transformation = `q_auto:good,f_auto`;
       return `${urlParts[0]}/upload/${transformation}/${urlParts[1]}`;
     } catch (error) {
       console.error('Image optimization error:', error);

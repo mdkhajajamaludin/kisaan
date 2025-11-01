@@ -83,8 +83,9 @@ class Order {
 
   static async getByUser(userId, limit = 20, offset = 0) {
     const query = `
-      SELECT o.*
+      SELECT o.*, u.name as user_name, u.email as user_email
       FROM orders o
+      LEFT JOIN users u ON o.user_id = u.id
       WHERE o.user_id = $1
       ORDER BY o.created_at DESC
       LIMIT $2 OFFSET $3

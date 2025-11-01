@@ -204,89 +204,254 @@ router.get('/orders', verifyToken, async (req, res) => {
   }
 });
 
-// Get analytics data
+// Get analytics data with real metrics
 router.get('/analytics', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { period = '30d' } = req.query;
 
     let startDate;
+    let prevStartDate;
     const endDate = new Date();
 
     switch (period) {
       case '7d':
         startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        prevStartDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
         break;
       case '30d':
         startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        prevStartDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
         break;
       case '90d':
         startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+        prevStartDate = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
         break;
       case '1y':
         startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+        prevStartDate = new Date(Date.now() - 730 * 24 * 60 * 60 * 1000);
         break;
       default:
         startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        prevStartDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
     }
 
-    // Sales analytics
-    const salesAnalytics = await Order.getAnalytics(startDate, endDate);
-
-    // User growth
-    const userGrowthQuery = `
+    // Current period revenue and orders
+    const currentPeriodQuery = `
       SELECT 
-        DATE_TRUNC('day', created_at) as date,
+        COUNT(*) as total_orders,
+        COALESCE(SUM(total_amount), 0) as total_revenue,
+        COALESCE(AVG(total_amount), 0) as avg_order_value
+      FROM orders
+      WHERE created_at BETWEEN $1 AND $2 AND status != 'cancelled'
+    `;
+    const currentPeriod = await db.query(currentPeriodQuery, [startDate, endDate]);
+
+    // Previous period for comparison
+    const previousPeriodQuery = `
+      SELECT 
+        COUNT(*) as total_orders,
+        COALESCE(SUM(total_amount), 0) as total_revenue,
+        COALESCE(AVG(total_amount), 0) as avg_order_value
+      FROM orders
+      WHERE created_at BETWEEN $1 AND $2 AND status != 'cancelled'
+    `;
+    const previousPeriod = await db.query(previousPeriodQuery, [prevStartDate, startDate]);
+
+    // Calculate growth percentages
+    const calculateGrowth = (current, previous) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return ((current - previous) / previous) * 100;
+    };
+
+    const currentStats = currentPeriod.rows[0];
+    const prevStats = previousPeriod.rows[0];
+
+    const revenueGrowth = calculateGrowth(
+      parseFloat(currentStats.total_revenue),
+      parseFloat(prevStats.total_revenue)
+    );
+    const ordersGrowth = calculateGrowth(
+      parseInt(currentStats.total_orders),
+      parseInt(prevStats.total_orders)
+    );
+    const avgOrderGrowth = calculateGrowth(
+      parseFloat(currentStats.avg_order_value),
+      parseFloat(prevStats.avg_order_value)
+    );
+
+    // Total customers (current period)
+    const customersQuery = `
+      SELECT COUNT(DISTINCT user_id) as total_customers
+      FROM orders
+      WHERE created_at BETWEEN $1 AND $2
+    `;
+    const currentCustomers = await db.query(customersQuery, [startDate, endDate]);
+    const prevCustomers = await db.query(customersQuery, [prevStartDate, startDate]);
+    
+    const customersGrowth = calculateGrowth(
+      parseInt(currentCustomers.rows[0].total_customers || 0),
+      parseInt(prevCustomers.rows[0].total_customers || 0)
+    );
+
+    // Daily revenue data for chart
+    const dailyRevenueQuery = `
+      SELECT 
+        DATE(created_at) as date,
+        COALESCE(SUM(total_amount), 0) as revenue,
+        COUNT(*) as orders
+      FROM orders
+      WHERE created_at BETWEEN $1 AND $2 AND status != 'cancelled'
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+      LIMIT 7
+    `;
+    const dailyRevenue = await db.query(dailyRevenueQuery, [startDate, endDate]);
+
+    // Format chart data (last 7 days)
+    const chartData = dailyRevenue.rows.reverse().map(row => ({
+      name: new Date(row.date).toLocaleDateString('en-US', { weekday: 'short' }),
+      revenue: parseFloat(row.revenue),
+      orders: parseInt(row.orders)
+    }));
+
+    // Top products
+    const topProductsQuery = `
+      SELECT 
+        p.id, p.name,
+        SUM(oi.quantity) as sales,
+        SUM(oi.quantity * oi.price) as revenue
+      FROM products p
+      JOIN order_items oi ON p.id = oi.product_id
+      JOIN orders o ON oi.order_id = o.id
+      WHERE o.created_at BETWEEN $1 AND $2 AND o.status != 'cancelled'
+      GROUP BY p.id, p.name
+      ORDER BY revenue DESC
+      LIMIT 5
+    `;
+    const topProducts = await db.query(topProductsQuery, [startDate, endDate]);
+
+    // Order status distribution
+    const statusDistQuery = `
+      SELECT status, COUNT(*) as count
+      FROM orders
+      WHERE created_at BETWEEN $1 AND $2
+      GROUP BY status
+    `;
+    const statusDist = await db.query(statusDistQuery, [startDate, endDate]);
+
+    // User growth data
+    const userGrowthQuery = `
+      SELECT
+        DATE(created_at) as date,
         COUNT(*) as new_users
       FROM users
       WHERE created_at BETWEEN $1 AND $2
-      GROUP BY DATE_TRUNC('day', created_at)
-      ORDER BY date
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+      LIMIT 30
     `;
     const userGrowth = await db.query(userGrowthQuery, [startDate, endDate]);
 
-    // Product performance
-    const productPerformanceQuery = `
-      SELECT 
-        p.id, p.name, p.price,
-        COUNT(oi.id) as order_count,
-        SUM(oi.quantity) as total_quantity,
-        SUM(oi.quantity * oi.price) as total_revenue
+    // Recent activity (last 10 activities)
+    const recentActivityQuery = `
+      SELECT
+        'order' as type,
+        o.id,
+        'Order #' || o.id || ' placed' as action,
+        o.created_at,
+        u.name as user_name
+      FROM orders o
+      LEFT JOIN users u ON o.user_id = u.id
+      WHERE o.created_at >= NOW() - INTERVAL '24 hours'
+      UNION ALL
+      SELECT
+        'product' as type,
+        p.id,
+        'Product "' || p.name || '" added' as action,
+        p.created_at,
+        u.name as user_name
       FROM products p
-      LEFT JOIN order_items oi ON p.id = oi.product_id
-      LEFT JOIN orders o ON oi.order_id = o.id
-      WHERE o.created_at BETWEEN $1 AND $2 AND o.status = 'completed'
-      GROUP BY p.id, p.name, p.price
-      ORDER BY total_revenue DESC
+      LEFT JOIN users u ON p.vendor_id = u.id
+      WHERE p.created_at >= NOW() - INTERVAL '24 hours'
+      UNION ALL
+      SELECT
+        'user' as type,
+        u.id,
+        'User "' || u.name || '" registered' as action,
+        u.created_at,
+        u.name as user_name
+      FROM users u
+      WHERE u.created_at >= NOW() - INTERVAL '24 hours'
+      ORDER BY created_at DESC
       LIMIT 10
     `;
-    const productPerformance = await db.query(productPerformanceQuery, [startDate, endDate]);
+    const recentActivity = await db.query(recentActivityQuery);
 
-    // Category performance
-    const categoryPerformanceQuery = `
-      SELECT 
-        c.name as category_name,
-        COUNT(oi.id) as order_count,
-        SUM(oi.quantity) as total_quantity,
-        SUM(oi.quantity * oi.price) as total_revenue
-      FROM categories c
-      LEFT JOIN products p ON c.id = p.category_id
-      LEFT JOIN order_items oi ON p.id = oi.product_id
-      LEFT JOIN orders o ON oi.order_id = o.id
-      WHERE o.created_at BETWEEN $1 AND $2 AND o.status = 'completed'
-      GROUP BY c.id, c.name
-      ORDER BY total_revenue DESC
+    // Calculate conversion rate (orders / unique visitors)
+    // For now, we'll use orders / customers as a proxy
+    const conversionRate = currentCustomers.rows[0].total_customers > 0
+      ? (parseInt(currentStats.total_orders) / parseInt(currentCustomers.rows[0].total_customers)) * 100
+      : 0;
+
+    // Calculate page views (sum of product views)
+    // Note: view_count column may not exist in all database schemas
+    let pageViewsResult;
+    try {
+      const pageViewsQuery = `
+        SELECT COALESCE(SUM(view_count), 0) as total_views
+        FROM products
+      `;
+      pageViewsResult = await db.query(pageViewsQuery);
+    } catch (error) {
+      // If view_count column doesn't exist, default to 0
+      console.log('Note: view_count column not found, defaulting to 0');
+      pageViewsResult = { rows: [{ total_views: 0 }] };
+    }
+
+    // Calculate average session duration (mock for now - would need session tracking)
+    // Using average time between order creation and completion as proxy
+    const avgSessionQuery = `
+      SELECT
+        AVG(EXTRACT(EPOCH FROM (updated_at - created_at))) as avg_duration
+      FROM orders
+      WHERE created_at BETWEEN $1 AND $2 AND status = 'completed'
     `;
-    const categoryPerformance = await db.query(categoryPerformanceQuery, [startDate, endDate]);
-
-
+    const avgSession = await db.query(avgSessionQuery, [startDate, endDate]);
+    const avgSessionSeconds = parseInt(avgSession.rows[0]?.avg_duration || 0);
 
     const analytics = {
-      period: { start_date: startDate, end_date: endDate },
-      sales: salesAnalytics,
-      userGrowth: userGrowth.rows,
-      productPerformance: productPerformance.rows,
-      categoryPerformance: categoryPerformance.rows,
-
+      overview: {
+        totalRevenue: parseFloat(currentStats.total_revenue),
+        revenueGrowth: Math.round(revenueGrowth * 10) / 10,
+        totalOrders: parseInt(currentStats.total_orders),
+        ordersGrowth: Math.round(ordersGrowth * 10) / 10,
+        totalCustomers: parseInt(currentCustomers.rows[0].total_customers || 0),
+        customersGrowth: Math.round(customersGrowth * 10) / 10,
+        avgOrderValue: parseFloat(currentStats.avg_order_value),
+        avgOrderGrowth: Math.round(avgOrderGrowth * 10) / 10
+      },
+      chartData,
+      topProducts: topProducts.rows.map(p => ({
+        name: p.name,
+        sales: parseInt(p.sales),
+        revenue: parseFloat(p.revenue)
+      })),
+      orderStatusDistribution: statusDist.rows,
+      userGrowth: userGrowth.rows.map(row => ({
+        date: row.date,
+        new_users: parseInt(row.new_users)
+      })),
+      recentActivity: recentActivity.rows.map(row => ({
+        type: row.type,
+        action: row.action,
+        time: row.created_at,
+        user_name: row.user_name
+      })),
+      quickStats: {
+        pageViews: parseInt(pageViewsResult.rows[0].total_views || 0),
+        conversionRate: Math.round(conversionRate * 100) / 100,
+        avgSessionDuration: avgSessionSeconds
+      }
     };
 
     res.json({

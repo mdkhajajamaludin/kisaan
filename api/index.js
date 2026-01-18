@@ -77,6 +77,7 @@ app.use('/api/addresses', require('../src/routes/addresses'));
 app.use('/api/notifications', require('../src/routes/notifications'));
 app.use('/api/cart', require('../src/routes/cart'));
 app.use('/api/wishlist', require('../src/routes/wishlist'));
+app.use('/api/chat', require('../src/routes/chat'));
 
 
 // Root Welcome Route

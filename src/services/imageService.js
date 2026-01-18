@@ -1,21 +1,35 @@
 const { cloudinary, getPublicIdFromUrl, deleteImage } = require('../middleware/upload');
 
 class ImageService {
-  // Process uploaded files (files are already uploaded to Cloudinary via multer)
+  // Process uploaded files (files are already uploaded to Cloudinary via multer OR local storage)
   static processUploadedFiles(files) {
     try {
-      console.log('Processing files:', files.map(f => ({ 
-        path: f.path, 
-        filename: f.filename, 
-        originalname: f.originalname 
+      console.log('Processing files:', files.map(f => ({
+        path: f.path,
+        filename: f.filename,
+        originalname: f.originalname
       })));
-      
-      return files.map(file => ({
-        url: file.path, // Cloudinary URL
-        publicId: file.filename, // Cloudinary public ID
-        originalName: file.originalname,
-        size: file.size
-      }));
+
+      return files.map(file => {
+        // If file.path is a local path (not a URL), convert it to a URL
+        let url = file.path;
+        if (!url.startsWith('http')) {
+          // It's a local file
+          // Determine base URL (in production this should be env var, for now relative)
+          // For API response, we return /uploads/filename
+          const filename = file.filename;
+          url = `/uploads/${filename}`;
+          // If we want absolute URL:
+          // url = `${process.env.API_URL || 'http://localhost:5000'}/uploads/${filename}`;
+        }
+
+        return {
+          url: url,
+          publicId: file.filename, // For local files, filename is the ID
+          originalName: file.originalname,
+          size: file.size
+        };
+      });
     } catch (error) {
       console.error('File processing error:', error);
       throw new Error('Failed to process uploaded files');
@@ -77,10 +91,10 @@ class ImageService {
     try {
       const deletePromises = imageUrls.map(url => this.deleteImageByUrl(url));
       const results = await Promise.allSettled(deletePromises);
-      
+
       const successful = results.filter(result => result.status === 'fulfilled');
       const failed = results.filter(result => result.status === 'rejected');
-      
+
       return {
         successful: successful.length,
         failed: failed.length,

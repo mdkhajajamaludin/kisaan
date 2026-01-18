@@ -78,10 +78,66 @@ app.use('/api/notifications', require('../src/routes/notifications'));
 app.use('/api/cart', require('../src/routes/cart'));
 app.use('/api/wishlist', require('../src/routes/wishlist'));
 
+
+// Root Welcome Route
+app.get('/', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>KisanHub Server</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                height: 100vh;
+                margin: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                color: white;
+            }
+            .container {
+                text-align: center;
+                background: rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(10px);
+                padding: 3rem;
+                border-radius: 20px;
+                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+                border: 1px solid rgba(255, 255, 255, 0.18);
+                max-width: 90%;
+            }
+            h1 { font-size: 3.5rem; margin: 0 0 1rem 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+            p { font-size: 1.5rem; margin: 0 0 2rem 0; font-weight: 300; }
+            .badge {
+                display: inline-block;
+                padding: 0.5rem 1.5rem;
+                background: rgba(255,255,255,0.2);
+                border-radius: 50px;
+                font-size: 1rem;
+                letter-spacing: 1px;
+                text-transform: uppercase;
+                font-weight: 600;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>KisanHub</h1>
+            <p>Welcome to KisanHub</p>
+            <div class="badge">Developed by Al Noor</div>
+        </div>
+    </body>
+    </html>
+  `);
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     services: {
@@ -94,7 +150,7 @@ app.get('/api/health', (req, res) => {
 
 // Simple test endpoint
 app.get('/api/test', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'Server is running!',
     timestamp: new Date().toISOString()
   });
@@ -103,19 +159,19 @@ app.get('/api/test', (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  
+
   if (err.type === 'entity.parse.failed') {
     return res.status(400).json({ error: 'Invalid JSON in request body' });
   }
-  
+
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({ error: 'File too large' });
   }
-  
-  res.status(500).json({ 
-    error: process.env.NODE_ENV === 'production' 
-      ? 'Internal server error' 
-      : err.message 
+
+  res.status(500).json({
+    error: process.env.NODE_ENV === 'production'
+      ? 'Internal server error'
+      : err.message
   });
 });
 

@@ -32,11 +32,9 @@ router.get('/cart', verifyToken, async (req, res) => {
     
     const query = `
       SELECT ci.id, ci.quantity, ci.created_at,
-             p.id as product_id, p.name, p.price, p.images, p.stock_quantity,
-             u.name as vendor_name
+             p.id as product_id, p.name, p.price, p.images, p.stock_quantity
       FROM cart_items ci
       JOIN products p ON ci.product_id = p.id
-      JOIN users u ON p.vendor_id = u.id
       WHERE ci.user_id = $1 AND p.is_active = true
       ORDER BY ci.created_at DESC
     `;
@@ -204,11 +202,9 @@ router.get('/wishlist', verifyToken, async (req, res) => {
     
     const query = `
       SELECT wi.id, wi.created_at,
-             p.id as product_id, p.name, p.price, p.images, p.stock_quantity,
-             u.name as vendor_name
+             p.id as product_id, p.name, p.price, p.images, p.stock_quantity
       FROM wishlist_items wi
       JOIN products p ON wi.product_id = p.id
-      JOIN users u ON p.vendor_id = u.id
       WHERE wi.user_id = $1 AND p.is_active = true
       ORDER BY wi.created_at DESC
     `;

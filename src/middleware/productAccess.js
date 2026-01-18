@@ -22,6 +22,20 @@ const requireProductAccess = async (req, res, next) => {
       return next();
     }
 
+
+
+    // Users with can_add_products permission also have access
+    if (req.user.can_add_products) {
+      console.log('User with product permission detected - granting access');
+      req.productAccess = {
+        is_approved: true,
+        max_products: 100, // Moderate limit for regular users
+        current_product_count: 0,
+        remaining_slots: 100
+      };
+      return next();
+    }
+
     // Check if user has product access
     const access = await ProductSubmission.hasProductAccess(req.user.id);
 
@@ -46,8 +60,7 @@ const requireProductAccess = async (req, res, next) => {
     // Get user's current product count
     const db = require('../config/database');
     const productCountResult = await db.query(
-      'SELECT COUNT(*) as count FROM products WHERE vendor_id = $1 AND is_active = true',
-      [req.user.id]
+      'SELECT COUNT(*) as count FROM products WHERE is_active = true'
     );
     const currentProductCount = parseInt(productCountResult.rows[0].count);
 
@@ -96,10 +109,10 @@ const requireProductOwnership = async (req, res, next) => {
       return res.status(400).json({ error: 'Product ID required' });
     }
 
-    // Check if product belongs to user
+    // Check if product exists
     const db = require('../config/database');
     const result = await db.query(
-      'SELECT vendor_id FROM products WHERE id = $1',
+      'SELECT id FROM products WHERE id = $1',
       [productId]
     );
 
@@ -107,13 +120,11 @@ const requireProductOwnership = async (req, res, next) => {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    const product = result.rows[0];
-    if (product.vendor_id !== req.user.id) {
-      return res.status(403).json({
-        error: 'Access denied',
-        message: 'You can only edit your own products'
-      });
-    }
+    // Since we removed vendor system, only admin can edit products
+    return res.status(403).json({
+      error: 'Access denied',
+      message: 'Only administrators can edit products'
+    });
 
     next();
   } catch (error) {

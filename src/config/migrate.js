@@ -158,6 +158,30 @@ const createTables = async () => {
       )
     `);
 
+    // Chat Sessions table
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS chat_sessions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        status VARCHAR(50) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Messages table
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id SERIAL PRIMARY KEY,
+        session_id INTEGER REFERENCES chat_sessions(id) ON DELETE CASCADE,
+        sender_type VARCHAR(50) NOT NULL,
+        sender_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        read_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Create indexes for better performance
     await db.query('CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id)');
     await db.query('CREATE INDEX IF NOT EXISTS idx_products_vendor ON products(vendor_id)');
@@ -166,6 +190,9 @@ const createTables = async () => {
     await db.query('CREATE INDEX IF NOT EXISTS idx_wishlist_user ON wishlist_items(user_id)');
     await db.query('CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id)');
     await db.query('CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read)');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON chat_sessions(user_id)');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_chat_sessions_status ON chat_sessions(status)');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id)');
 
     // Insert default categories for organic food
     const categories = [

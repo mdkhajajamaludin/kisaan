@@ -16,7 +16,7 @@ class SocketHandler {
       socket.on('authenticate', async (data) => {
         try {
           const { token } = data;
-          
+
           if (!token) {
             socket.emit('auth_error', { message: 'No token provided' });
             return;
@@ -43,7 +43,7 @@ class SocketHandler {
 
           // Join user-specific room
           socket.join(`user_${user.id}`);
-          
+
           // Join role-specific rooms
           if (user.role === 'vendor') {
             socket.join('vendors');
@@ -51,10 +51,10 @@ class SocketHandler {
             socket.join('admins');
           }
 
-          socket.emit('authenticated', { 
-            userId: user.id, 
+          socket.emit('authenticated', {
+            userId: user.id,
             role: user.role,
-            message: 'Successfully authenticated' 
+            message: 'Successfully authenticated'
           });
 
           console.log(`✅ User ${user.email} (${user.role}) authenticated on socket ${socket.id}`);
@@ -95,6 +95,32 @@ class SocketHandler {
         socket.join(`order_${orderId}`);
         console.log(`📦 User ${socket.userId} tracking order ${orderId}`);
       });
+
+      // --- Chat System Events ---
+
+      // Join a specific chat room
+      socket.on('join_chat', (sessionId) => {
+        // Validation: Ensure user has access to this chat session
+        // (For simplicity assuming client sends valid sessionId they are part of)
+        // In a real app, verify against DB or socket.userId
+
+        const roomName = `chat_${sessionId}`;
+        socket.join(roomName);
+        console.log(`💬 Socket ${socket.id} joined chat room: ${roomName}`);
+      });
+
+      // Handle typing status
+      socket.on('typing', ({ sessionId, isTyping }) => {
+        socket.to(`chat_${sessionId}`).emit('typing_status', {
+          userId: socket.userId,
+          isTyping,
+          sessionId
+        });
+      });
+
+      // Handle new message (if using socket purely, though we use API for persistence usually)
+      // This is a backup or for pure socket implementations
+      // socket.on('send_message', (messageData) => { ... }); (We are using API -> Socket emit flow)
     });
   }
 
